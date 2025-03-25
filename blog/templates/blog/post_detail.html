@@ -1,0 +1,427 @@
+{% extends "blog/base.html" %}
+{% load static %}
+
+{% block title %}{{ post.title }} - Professional Blog{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Like/Dislike Buttons */
+    .btn-like,
+    .btn-dislike {
+        transition: all 0.3s ease;
+        border: none;
+        background: none;
+        padding: 8px 16px;
+        cursor: pointer;
+        color: #6c757d;
+    }
+
+    .btn-like:hover {
+        color: #dc3545;
+    }
+
+    .btn-dislike:hover {
+        color: #343a40;
+    }
+
+    .btn-like.liked {
+        color: #dc3545;
+    }
+
+    .btn-like.liked i {
+        animation: likeAnimation 0.3s ease-in-out;
+    }
+
+    .btn-dislike.disliked {
+        color: #343a40;
+    }
+
+    .btn-dislike.disliked i {
+        animation: dislikeAnimation 0.3s ease-in-out;
+    }
+
+    @keyframes likeAnimation {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.2); }
+        100% { transform: scale(1); }
+    }
+
+    @keyframes dislikeAnimation {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.2); }
+        100% { transform: scale(1); }
+    }
+
+    .btn-like:disabled,
+    .btn-dislike:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Toast Notification */
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1050;
+    }
+
+    .toast {
+        background-color: rgba(255, 255, 255, 0.95);
+        border-radius: 4px;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        margin-bottom: 10px;
+        min-width: 250px;
+    }
+</style>
+{% endblock %}
+
+{% block hero %}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Post Content -->
+            <article class="post-detail">
+                {% if post.featured_image %}
+                <img src="{{ post.featured_image.url }}" class="blog-image mb-4" alt="{{ post.title }}">
+                {% endif %}
+
+                <h1 class="display-4 mb-3">{{ post.title }}</h1>
+
+                <div class="post-meta mb-4">
+                    <div class="d-flex align-items-center">
+                        <img src="{{ post.author.profile.profile_picture.url|default:'https://via.placeholder.com/64' }}" 
+                             alt="{{ post.author.username }}" 
+                             class="profile-pic-md me-3">
+                        <div>
+                            <a href="{% url 'blog:user_profile' post.author.username %}" class="text-decoration-none h5">
+                                {{ post.author.get_full_name|default:post.author.username }}
+                            </a>
+                            <div class="text-muted">
+                                <i class="bi bi-calendar3 me-1"></i>{{ post.created_at|date:"F d, Y" }}
+                                <i class="bi bi-eye ms-2 me-1"></i>{{ post.views }} views
+                                <i class="bi bi-chat ms-2 me-1"></i>{{ comments.count }} comments
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="post-content mb-4">
+                    {{ post.content|safe|linebreaks }}
+                </div>
+
+                <!-- Tags -->
+                <div class="mb-4">
+                    {% for tag in post.tags.all %}
+                    <a href="{% url 'blog:tag_posts' tag.slug %}" class="tag">
+                        <i class="bi bi-tag me-1"></i>{{ tag.name }}
+                    </a>
+                    {% endfor %}
+                </div>
+
+                <!-- Like/Dislike Section -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <form id="like-form-{{ post.slug }}" style="display: inline;">
+                                    {% csrf_token %}
+                                    <button type="button" id="like-btn-{{ post.slug }}"
+                                            onclick="handleLikeDislike('{{ post.slug }}', 'like')" 
+                                            class="btn-like me-3 {% if user in post.likes.all %}liked{% endif %}"
+                                            {% if not user.is_authenticated %}disabled title="Please login to like posts"{% endif %}>
+                                        <i class="bi bi-heart-fill"></i>
+                                        <span id="likes-count-{{ post.slug }}">{{ post.likes.count }}</span>
+                                    </button>
+                                </form>
+                                <form id="dislike-form-{{ post.slug }}" style="display: inline;">
+                                    {% csrf_token %}
+                                    <button type="button" id="dislike-btn-{{ post.slug }}"
+                                            onclick="handleLikeDislike('{{ post.slug }}', 'dislike')"
+                                            class="btn-dislike {% if user in post.dislikes.all %}disliked{% endif %}"
+                                            {% if not user.is_authenticated %}disabled title="Please login to dislike posts"{% endif %}>
+                                        <i class="bi bi-hand-thumbs-down-fill"></i>
+                                        <span id="dislikes-count-{{ post.slug }}">{{ post.dislikes.count }}</span>
+                                    </button>
+                                </form>
+                            </div>
+                            {% if user == post.author %}
+                            <div>
+                                <a href="{% url 'blog:post_edit' post.slug %}" class="btn btn-outline-primary btn-sm me-2">
+                                    <i class="bi bi-pencil-square me-1"></i>Edit
+                                </a>
+                                <a href="{% url 'blog:post_delete' post.slug %}" class="btn btn-outline-danger btn-sm">
+                                    <i class="bi bi-trash me-1"></i>Delete
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comments Section -->
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-chat-square-text me-2"></i>
+                            Comments ({{ comments.count }})
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% if user.is_authenticated %}
+                        <form action="{% url 'blog:add_comment' post.slug %}" method="POST" class="mb-4">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                {{ comment_form.content }}
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-send me-1"></i>Post Comment
+                            </button>
+                        </form>
+                        {% else %}
+                        <div class="alert alert-info">
+                            Please <a href="{% url 'blog:login' %}">login</a> to post a comment.
+                        </div>
+                        {% endif %}
+
+                        <div class="comments-list">
+                            {% for comment in comments %}
+                            <div class="comment mb-3">
+                                <div class="d-flex">
+                                    <img src="{{ comment.author.profile.profile_picture.url|default:'https://via.placeholder.com/32' }}" 
+                                         alt="{{ comment.author.username }}" 
+                                         class="profile-pic-sm me-2">
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <a href="{% url 'blog:user_profile' comment.author.username %}" class="fw-bold text-decoration-none">
+                                                    {{ comment.author.get_full_name|default:comment.author.username }}
+                                                </a>
+                                                <small class="text-muted ms-2">{{ comment.created_at|timesince }} ago</small>
+                                            </div>
+                                            {% if user == comment.author %}
+                                            <div class="dropdown">
+                                                <button class="btn btn-link btn-sm text-muted" type="button" data-bs-toggle="dropdown">
+                                                    <i class="bi bi-three-dots-vertical"></i>
+                                                </button>
+                                                <ul class="dropdown-menu">
+                                                    <li>
+                                                        <form action="{% url 'blog:delete_comment' comment.id %}" method="POST" class="d-inline">
+                                                            {% csrf_token %}
+                                                            <button type="submit" class="dropdown-item text-danger">
+                                                                <i class="bi bi-trash me-1"></i>Delete
+                                                            </button>
+                                                        </form>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        <p class="mb-1">{{ comment.content }}</p>
+                                        <div class="mt-2">
+                                            <button onclick="showReplyForm('{{ comment.id }}')" class="btn btn-link btn-sm text-muted p-0">
+                                                <i class="bi bi-reply me-1"></i>Reply
+                                            </button>
+                                        </div>
+                                        <div id="reply-form-{{ comment.id }}" class="mt-2" style="display: none;">
+                                            <form action="{% url 'blog:reply_comment' comment.id %}" method="POST">
+                                                {% csrf_token %}
+                                                <div class="input-group">
+                                                    <input type="text" name="content" class="form-control form-control-sm" placeholder="Write a reply...">
+                                                    <button type="submit" class="btn btn-primary btn-sm">Reply</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                        <!-- Nested Comments -->
+                                        {% for reply in comment.replies.all %}
+                                        <div class="ms-4 mt-2">
+                                            <div class="d-flex">
+                                                <img src="{{ reply.author.profile.profile_picture.url|default:'https://via.placeholder.com/24' }}" 
+                                                     alt="{{ reply.author.username }}" 
+                                                     class="profile-pic-sm me-2"
+                                                     style="width: 24px; height: 24px;">
+                                                <div>
+                                                    <div class="d-flex align-items-center">
+                                                        <a href="{% url 'blog:user_profile' reply.author.username %}" class="fw-bold text-decoration-none">
+                                                            {{ reply.author.get_full_name|default:reply.author.username }}
+                                                        </a>
+                                                        <small class="text-muted ms-2">{{ reply.created_at|timesince }} ago</small>
+                                                    </div>
+                                                    <p class="mb-0">{{ reply.content }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="text-center text-muted py-3">
+                                <i class="bi bi-chat-square-text display-4"></i>
+                                <p class="mt-2">No comments yet. Be the first to comment!</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </article>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Author Card -->
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <img src="{{ post.author.profile.profile_picture.url|default:'https://via.placeholder.com/128' }}" 
+                         alt="{{ post.author.username }}" 
+                         class="profile-pic-lg mb-3">
+                    <h5 class="card-title">{{ post.author.get_full_name|default:post.author.username }}</h5>
+                    <p class="card-text text-muted">{{ post.author.profile.bio|truncatewords:30 }}</p>
+                    <a href="{% url 'blog:user_profile' post.author.username %}" class="btn btn-outline-primary">
+                        View Profile
+                    </a>
+                </div>
+            </div>
+
+            <!-- Related Posts -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-link-45deg me-2"></i>Related Posts</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for related_post in post.get_related_posts|slice:":5" %}
+                    <a href="{% url 'blog:post_detail' related_post.slug %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex align-items-center">
+                            {% if related_post.featured_image %}
+                            <img src="{{ related_post.featured_image.url }}" 
+                                 class="me-3" 
+                                 alt="{{ related_post.title }}"
+                                 style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;">
+                            {% endif %}
+                            <div>
+                                <h6 class="mb-1">{{ related_post.title }}</h6>
+                                <small class="text-muted">{{ related_post.created_at|timesince }} ago</small>
+                            </div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container" class="toast-container"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function handleLikeDislike(postSlug, action) {
+        const button = document.getElementById(`${action}-btn-${postSlug}`);
+        const form = document.getElementById(`${action}-form-${postSlug}`);
+        const csrfToken = form.querySelector('input[name="csrfmiddlewaretoken"]').value;
+        
+        // Disable button during request
+        button.disabled = true;
+
+        // Use the correct URL pattern
+        const url = action === 'like' ? 
+            `{% url 'blog:like_post' post.slug %}` : 
+            `{% url 'blog:dislike_post' post.slug %}`;
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Update like button
+            const likeBtn = document.getElementById(`like-btn-${postSlug}`);
+            const dislikeBtn = document.getElementById(`dislike-btn-${postSlug}`);
+            const likesCount = document.getElementById(`likes-count-${postSlug}`);
+            const dislikesCount = document.getElementById(`dislikes-count-${postSlug}`);
+
+            if (action === 'like') {
+                if (data.liked) {
+                    likeBtn.classList.add('liked');
+                    dislikeBtn.classList.remove('disliked');
+                } else {
+                    likeBtn.classList.remove('liked');
+                }
+            } else {
+                if (data.disliked) {
+                    dislikeBtn.classList.add('disliked');
+                    likeBtn.classList.remove('liked');
+                } else {
+                    dislikeBtn.classList.remove('disliked');
+                }
+            }
+
+            // Update counts
+            likesCount.textContent = data.likes_count;
+            dislikesCount.textContent = data.dislikes_count;
+
+            // Show success message
+            showToast('success', action === 'like' ? 
+                (data.liked ? 'Post liked!' : 'Like removed!') : 
+                (data.disliked ? 'Post disliked!' : 'Dislike removed!'));
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('error', 'Something went wrong. Please try again.');
+        })
+        .finally(() => {
+            button.disabled = false;
+        });
+    }
+
+    function showToast(type, message) {
+        const container = document.getElementById('toast-container');
+        
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.innerHTML = `
+            <div class="toast-header bg-${type === 'success' ? 'success' : 'danger'} text-white">
+                <strong class="me-auto">${type === 'success' ? 'Success' : 'Error'}</strong>
+                <button type="button" class="btn-close btn-close-white" onclick="this.parentElement.parentElement.remove()"></button>
+            </div>
+            <div class="toast-body">
+                ${message}
+            </div>
+        `;
+        
+        container.appendChild(toast);
+        
+        // Remove toast after 3 seconds
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    }
+
+    // Debug information
+    document.addEventListener('DOMContentLoaded', function() {
+        const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (!csrfToken) {
+            console.error('CSRF token not found');
+        } else {
+            console.log('CSRF token is available');
+        }
+
+        // Log the URLs for debugging
+        console.log('Like URL:', `{% url 'blog:like_post' post.slug %}`);
+        console.log('Dislike URL:', `{% url 'blog:dislike_post' post.slug %}`);
+    });
+</script>
+{% endblock %}

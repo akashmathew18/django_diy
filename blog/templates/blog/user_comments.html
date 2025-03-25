@@ -1,0 +1,88 @@
+{% extends "blog/base.html" %}
+{% load static %}
+
+{% block title %}My Comments - Professional Blog{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-3">
+            {% include "blog/dashboard_sidebar.html" %}
+        </div>
+        <div class="col-lg-9">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">My Comments</h4>
+                </div>
+                <div class="card-body">
+                    {% if comments %}
+                        <div class="list-group">
+                            {% for comment in comments %}
+                                <div class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-1">
+                                            On post: <a href="{% url 'blog:post_detail' slug=comment.post.slug %}" class="text-decoration-none">
+                                                {{ comment.post.title }}
+                                            </a>
+                                        </h6>
+                                        <small class="text-muted">
+                                            {{ comment.created_at|date:"F d, Y" }}
+                                        </small>
+                                    </div>
+                                    <p class="mb-1">{{ comment.content }}</p>
+                                    <div class="mt-2">
+                                        {% if comment.parent %}
+                                            <span class="badge bg-info">Reply to: {{ comment.parent.author.username }}</span>
+                                        {% endif %}
+                                        {% if comment.replies.exists %}
+                                            <span class="badge bg-secondary">{{ comment.replies.count }} replies</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        {% if comments.has_other_pages %}
+                            <nav aria-label="Comment pagination" class="mt-4">
+                                <ul class="pagination justify-content-center">
+                                    {% if comments.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ comments.previous_page_number }}" aria-label="Previous">
+                                                <span aria-hidden="true">&laquo;</span>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+
+                                    {% for num in comments.paginator.page_range %}
+                                        {% if comments.number == num %}
+                                            <li class="page-item active">
+                                                <span class="page-link">{{ num }}</span>
+                                            </li>
+                                        {% else %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    {% if comments.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ comments.next_page_number }}" aria-label="Next">
+                                                <span aria-hidden="true">&raquo;</span>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-info">
+                            You haven't made any comments yet. Start engaging with posts to see your comments here!
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

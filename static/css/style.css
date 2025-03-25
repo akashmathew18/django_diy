@@ -1,0 +1,66 @@
+/* Like/Dislike Buttons */
+.btn-like,
+.btn-dislike {
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.btn-like:hover {
+    color: #dc3545 !important;
+}
+
+.btn-dislike:hover {
+    color: #6c757d !important;
+}
+
+.btn-like.liked {
+    color: #dc3545 !important;
+}
+
+.btn-like.liked i {
+    animation: likeAnimation 0.3s ease-in-out;
+}
+
+.btn-dislike.disliked {
+    color: #6c757d !important;
+}
+
+.btn-dislike.disliked i {
+    animation: dislikeAnimation 0.3s ease-in-out;
+}
+
+@keyframes likeAnimation {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+@keyframes dislikeAnimation {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* Disabled state */
+.btn-like:disabled,
+.btn-dislike:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Loading state */
+.btn-like.loading,
+.btn-dislike.loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.btn-like.loading i,
+.btn-dislike.loading i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+} 

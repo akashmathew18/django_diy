@@ -1,0 +1,22 @@
+{% extends "blog/base.html" %}
+
+{% block title %}Search Results - My Blog{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <h1 class="my-4">Search Results for "{{ query }}"</h1>
+        
+        {% for post in posts %}
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h2 class="card-title"><a href="{% url 'blog:post_detail' post.slug %}">{{ post.title }}</a></h2>
+                    <p class="text-muted">By {{ post.author.username }} | {{ post.created_at|date:"M d, Y" }}</p>
+                    <p class="card-text">{{ post.content|truncatewords:30 }}</p>
+                    <a href="{% url 'blog:post_detail' post.slug %}" class="btn btn-primary">Read More</a>
+                </div>
+            </div>
+        {% empty %}
+            <p>No results found for "{{ query }}".</p>
+        {% endfor %}
+    </div>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "blog/base.html" %}
+
+{% block title %}{{ title|default:"Create Post" }} - My Blog{% endblock %}
+
+{% block content %}
+    <div class="container">
+        <h1 class="my-4">{{ title|default:"Create Post" }}</h1>
+        
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn btn-success">Save Post</button>
+        </form>
+    </div>
+{% endblock %}
